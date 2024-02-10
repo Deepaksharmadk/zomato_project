@@ -15,13 +15,9 @@ app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
+//routes import
+import signup from "./routers/auth.route.js";
+app.use("/auth", signup);
 
-// //routes import
-// import userRouter from "./routes/user.routes.js";
-
-// //routes declaration
-// app.use("/api/v1/healthcheck", healthcheckRouter);
-
-// // http://localhost:8000/api/v1/users/register
-
+//routes declaration
 export { app };

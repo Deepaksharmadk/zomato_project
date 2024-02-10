@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+
 import { ApiError } from "../utiles/ApiError.js";
 import { ApiResponse } from "../utiles/ApiResponse.js";
 import { asyncHandler } from "../utiles/asyncHandler.js";
@@ -7,32 +7,45 @@ import UserModel from "../model/user.model.js";
 const signup = asyncHandler(async (req, res) => {
   try {
     const { fullname, email, password, phonenumber } = req.body;
-    const checkUserbyemail = await UserModel.findOne({ email });
-    const checkUserbyphone = await UserModel.findOne({ phonenumber });
-    if (checkUserbyemail || checkUserbyphone) {
+    if (fullname && email && password && phonenumber == "") {
+      return res.json("all fields are required");
+    }
+    const existedUser = await UserModel.findOne({
+      $or: [{ phonenumber }, { email }],
+    });
+
+    if (existedUser) {
       return res.json({ error: "user allready exists" });
     }
-    // hash the password
-    const bcryptsalt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(password, bcryptsalt);
+
     // generate jwt token
-    const token = jwt.sign(
-      {
-        user: {
-          fullname,
-          email,
-        },
-      },
-      "shhhhh"
-    );
+
     // save to db
-    await UserModel.create({
-      ...req.body,
-      password: hashPassword,
-    });
-    return res.status(200).json({ token, staus: "success" });
+    const user = await UserModel.create(req.body);
+    const token = user.generateJwtToken();
+    return res.status(200).json({ token, staus: "user signup successfully " });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 });
-export { signup };
+const signin = asyncHandler(async (req, res) => {
+  try {
+    const { email, password, phonenumber } = req.body;
+    if (!password && !email) {
+      return res.json({ error: "username or email is required" });
+    }
+    const user = await UserModel.findOne({
+      $or: [{ phonenumber }, { email }],
+    });
+    if (!user) {
+      return res.json({ error: "User does not exist" });
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.json({ error: "Invalid user credentials" });
+    }
+    const token = await user.generateJwtToken();
+    return res.status(200).json({ token, staus: "user signin successfully " });
+  } catch (error) {}
+});
+export { signup, signin };
